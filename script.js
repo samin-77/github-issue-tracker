@@ -10,6 +10,21 @@ const themeToggle = document.getElementById('theme-toggle');
 
 let allIssuesData = [];
 
+// --- Data Normalization (FIX FOR ACCURATE FETCHING) ---
+function normalizeIssue(issue) {
+    return {
+        id: issue.id || issue._id || 'N/A',
+        title: issue.title || 'No Title Provided',
+        description: issue.description || 'No description available for this issue.',
+        status: (issue.status || 'open').toLowerCase(),
+        priority: (issue.priority || issue.priority_level || 'Medium').toLowerCase(),
+        category: issue.category || 'General',
+        label: issue.label || 'Issue',
+        author: issue.author || 'Anonymous',
+        createdAt: issue.createdAt || new Date()
+    };
+}
+
 // --- Theme Logic ---
 const savedTheme = localStorage.getItem('theme') || 'light';
 document.documentElement.setAttribute('data-theme', savedTheme);
@@ -28,7 +43,7 @@ loginForm.addEventListener('submit', (e) => {
         document.getElementById('password').value === 'admin123') {
         localStorage.setItem('user_auth', 'active');
         initDashboard();
-    } else { alert("Login failed!"); }
+    } else { alert("Login failed! Hint: admin / admin123"); }
 });
 
 function initDashboard() {
@@ -54,50 +69,125 @@ async function loadAllIssues() {
         updateGlobalStats();
         filterIssues('all');
     } catch (err) {
-        issuesContainer.innerHTML = `<div class="col-span-full text-center text-error font-bold">API Connection Error</div>`;
+        issuesContainer.innerHTML = `<div class="col-span-full text-center py-20 font-black text-error">API ERROR: Server Unreachable</div>`;
     } finally {
         setLoading(false);
     }
 }
 
-// --- Card Display (Updated to match Figma Card Style) ---
+// --- Figma Card Logic ---
 function displayCards(issues) {
     issuesContainer.innerHTML = '';
     dynamicCount.innerText = issues.length;
-    // Grammar check for the "Issues" text
     dynamicText.innerText = issues.length === 1 ? 'Issue' : 'Issues';
 
-    issues.forEach(issue => {
-        const status = (issue.status || 'open').toLowerCase();
-        const borderClass = status === 'closed' ? 'border-purple-500' : 'border-green-500';
+    issues.forEach(rawIssue => {
+        const issue = normalizeIssue(rawIssue);
+        const isClosed = issue.status === 'closed';
+        const borderClass = isClosed ? 'border-purple-500' : 'border-green-500';
+        
+        // Priority color mapping
+        let priorityColor = 'text-yellow-500';
+        if(issue.priority === 'high') priorityColor = 'text-red-500';
+        if(issue.priority === 'low') priorityColor = 'text-emerald-500';
         
         const card = document.createElement('div');
-        card.className = `card-github bg-base-100 shadow-sm border border-base-300 border-t-4 ${borderClass} rounded-2xl overflow-hidden cursor-pointer`;
+        card.className = `card-github bg-white border border-base-300 border-t-4 ${borderClass} shadow-sm cursor-pointer flex flex-col`;
         card.innerHTML = `
-            <div class="p-6 flex flex-col h-full" onclick="openIssueDetail('${issue.id}')">
-                <div class="mb-3">
-                    <h2 class="text-sm font-black leading-tight hover:text-primary line-clamp-2">${issue.title}</h2>
-                </div>
-                <p class="text-[11px] text-gray-500 font-medium line-clamp-3 mb-4 flex-grow">${issue.description}</p>
-                
-                <div class="flex flex-wrap gap-2 mb-5">
-                    <span class="px-2 py-1 bg-base-200 text-[10px] font-bold rounded-md border border-base-300 uppercase">${issue.category}</span>
-                    <span class="px-2 py-1 border border-primary/30 text-primary text-[10px] font-bold rounded-md uppercase">${issue.label}</span>
+            <div class="p-8 flex flex-col h-full" onclick="openIssueDetail('${issue.id}')">
+                <div class="flex justify-between items-start mb-4">
+                    <span class="text-[10px] font-black uppercase opacity-40 tracking-widest">${issue.category}</span>
+                    <span class="text-[10px] font-black uppercase ${priorityColor}">
+                        <i class="fa-solid fa-bolt mr-1"></i>${issue.priority}
+                    </span>
                 </div>
 
-                <div class="flex items-center justify-between pt-4 border-t border-dashed border-base-300 mt-auto">
+                <h2 class="text-base font-black leading-tight mb-3 line-clamp-2">${issue.title}</h2>
+                <p class="text-[11px] text-gray-500 font-medium line-clamp-3 mb-6 flex-grow">${issue.description}</p>
+                
+                <div class="flex gap-2 mb-2">
+                    <span class="px-3 py-1 bg-primary/5 text-primary border border-primary/20 text-[10px] font-black rounded-lg uppercase">${issue.label}</span>
+                </div>
+
+                <div class="dashed-line"></div>
+
+                <div class="flex items-center justify-between mt-auto">
                     <div class="flex items-center gap-2">
-                        <div class="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">
-                            ${issue.author.charAt(0)}
+                        <div class="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-[10px] font-black text-white">
+                            ${issue.author.charAt(0).toUpperCase()}
                         </div>
-                        <span class="text-[10px] font-black opacity-70 uppercase tracking-tight">${issue.author}</span>
+                        <span class="text-[11px] font-black opacity-80 uppercase tracking-tighter">${issue.author}</span>
                     </div>
-                    <span class="text-[9px] font-bold opacity-40 italic">${new Date(issue.createdAt).toLocaleDateString()}</span>
+                    <span class="text-[10px] font-bold opacity-30 italic">${new Date(issue.createdAt).toLocaleDateString()}</span>
                 </div>
             </div>
         `;
         issuesContainer.appendChild(card);
     });
+}
+
+// --- Figma Modal Logic ---
+async function openIssueDetail(id) {
+    try {
+        const res = await fetch(`https://phi-lab-server.vercel.app/api/v1/lab/issue/${id}`);
+        const resData = await res.json();
+        const issue = normalizeIssue(resData.data || resData);
+        const isClosed = issue.status === 'closed';
+
+        document.getElementById('modal-content').innerHTML = `
+            <div class="flex flex-col md:flex-row min-h-[450px]">
+                <div class="flex-[1.5] p-10 bg-white">
+                    <div class="mb-8">
+                        <span class="text-primary font-black text-[10px] uppercase tracking-[0.3em] mb-2 block">${issue.category}</span>
+                        <h3 class="font-black text-4xl leading-tight">${issue.title}</h3>
+                    </div>
+
+                    <div class="p-8 bg-gray-50 rounded-[2rem] border border-gray-100 mb-8">
+                        <p class="text-sm font-medium leading-relaxed opacity-70 italic">"${issue.description}"</p>
+                    </div>
+
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-black text-white flex items-center justify-center font-black">
+                             ${issue.author.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                            <p class="text-sm font-black uppercase">${issue.author}</p>
+                            <p class="text-[10px] font-bold opacity-40 uppercase tracking-widest">Issue Reported by User</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex-1 p-10 bg-[#f8fafc] border-l border-base-300 space-y-6">
+                    <div>
+                        <p class="text-[10px] font-black opacity-40 uppercase tracking-widest mb-3">Status</p>
+                        <div class="flex items-center gap-3 bg-white p-4 rounded-2xl border border-base-300">
+                            <span class="w-3 h-3 rounded-full ${isClosed ? 'bg-purple-500 pulse-purple' : 'bg-green-500 pulse-green'}"></span>
+                            <span class="font-black text-sm uppercase">${issue.status}</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <p class="text-[10px] font-black opacity-40 uppercase tracking-widest mb-3">Priority</p>
+                        <div class="bg-white p-4 rounded-2xl border border-base-300">
+                            <span class="font-black text-sm uppercase ${issue.priority === 'high' ? 'text-red-500' : 'text-yellow-500'}">
+                                <i class="fa-solid fa-triangle-exclamation mr-2"></i>${issue.priority}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <p class="text-[10px] font-black opacity-40 uppercase tracking-widest mb-3">Category Tag</p>
+                        <span class="badge badge-primary font-black uppercase p-3">${issue.label}</span>
+                    </div>
+
+                    <div class="pt-4 opacity-30">
+                        <p class="text-[10px] font-black uppercase">Ref ID: ${issue.id}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.getElementById('issue_modal').showModal();
+    } catch (err) { console.error(err); }
 }
 
 function filterIssues(type) {
@@ -111,51 +201,6 @@ function filterIssues(type) {
         const filtered = allIssuesData.filter(i => (i.status || '').toLowerCase() === type);
         displayCards(filtered);
     }
-}
-
-document.getElementById('search-btn').addEventListener('click', async () => {
-    const q = document.getElementById('search-input').value;
-    if (!q) return loadAllIssues();
-    setLoading(true);
-    try {
-        const res = await fetch(`https://phi-lab-server.vercel.app/api/v1/lab/issues/search?q=${q}`);
-        const data = await res.json();
-        displayCards(Array.isArray(data) ? data : (data.data || []));
-        viewTitle.innerText = `Search: ${q}`;
-    } catch (err) { console.error(err); } finally { setLoading(false); }
-});
-
-async function openIssueDetail(id) {
-    const res = await fetch(`https://phi-lab-server.vercel.app/api/v1/lab/issue/${id}`);
-    const resData = await res.json();
-    const issue = resData.data || resData;
-
-    document.getElementById('modal-content').innerHTML = `
-        <div class="mb-6">
-            <span class="text-primary font-black text-xs uppercase tracking-widest">${issue.category}</span>
-            <h3 class="font-black text-3xl mt-1 leading-tight">${issue.title}</h3>
-        </div>
-        <div class="flex items-center gap-3 mb-6 p-4 bg-base-200 rounded-2xl border border-base-300">
-            <span class="badge ${issue.status === 'open' ? 'badge-success' : 'badge-secondary'} font-bold p-3">
-                ${issue.status.toUpperCase()}
-            </span>
-            <span class="text-xs font-bold opacity-60 uppercase">Issue #${issue.id} • ${issue.author}</span>
-        </div>
-        <div class="bg-base-100 p-6 rounded-2xl border border-base-300 mb-6">
-            <p class="text-sm opacity-80 leading-relaxed">${issue.description}</p>
-        </div>
-        <div class="grid grid-cols-2 gap-4">
-            <div class="p-4 bg-base-200 rounded-xl border border-base-300">
-                <p class="text-[10px] font-black opacity-40 uppercase">Priority</p>
-                <p class="text-sm font-bold text-primary">${issue.priority}</p>
-            </div>
-            <div class="p-4 bg-base-200 rounded-xl border border-base-300">
-                <p class="text-[10px] font-black opacity-40 uppercase">Label</p>
-                <p class="text-sm font-bold">${issue.label}</p>
-            </div>
-        </div>
-    `;
-    document.getElementById('issue_modal').showModal();
 }
 
 function setLoading(state) {
