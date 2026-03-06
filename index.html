@@ -3,19 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GitHub Issues Tracker</title>
+    <title>GitHub Issues Tracker | Ishfak Mahbub Samin</title>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        /* Pulse Animations for Indicators */
+        .pulse-green { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); animation: pulse-g 2s infinite; }
+        .pulse-purple { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.7); animation: pulse-p 2s infinite; }
+        @keyframes pulse-g { 0% { transform: scale(0.95); } 70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); } 100% { transform: scale(0.95); } }
+        @keyframes pulse-p { 0% { transform: scale(0.95); } 70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(168, 85, 247, 0); } 100% { transform: scale(0.95); } }
+        
+        .tab-active { font-weight: bold !important; border-bottom: 2px solid currentColor !important; }
+    </style>
 </head>
-<body class="bg-slate-50 min-h-screen">
+<body class="bg-base-200 min-h-screen transition-all duration-300">
 
     <div id="login-page" class="flex items-center justify-center min-h-screen">
-        <div class="card w-96 bg-base-100 shadow-xl border">
+        <div class="card w-96 bg-base-100 shadow-2xl border border-base-300">
             <div class="card-body items-center text-center">
-                <i class="fa-brands fa-github text-5xl mb-2"></i>
+                <i class="fa-brands fa-github text-6xl mb-2"></i>
                 <h2 class="card-title text-2xl font-bold">Sign In</h2>
-                <p class="text-sm text-gray-500">Enter your details to access the tracker</p>
+                <p class="text-sm opacity-60 italic">GitHub Issues Tracker</p>
                 
                 <form id="login-form" class="w-full mt-4 space-y-4">
                     <input type="text" id="username" placeholder="Username" class="input input-bordered w-full" required />
@@ -23,7 +32,7 @@
                     <button type="submit" class="btn btn-primary w-full">Sign In</button>
                 </form>
 
-                <div class="mt-6 p-3 bg-blue-50 rounded-lg text-xs text-blue-700 w-full">
+                <div class="mt-6 p-4 bg-info/10 rounded-lg text-xs text-info w-full border border-info/20">
                     <p class="font-bold">Demo Credentials:</p>
                     <p>User: admin | Pass: admin123</p>
                 </div>
@@ -32,36 +41,75 @@
     </div>
 
     <div id="main-page" class="hidden">
-        <div class="navbar bg-base-100 shadow-md px-4 lg:px-20">
-            <div class="flex-1">
-                <a class="text-xl font-bold flex items-center gap-2">
-                    <i class="fa-brands fa-github"></i> IssueTracker
-                </a>
+        <div class="navbar bg-base-100 shadow-md px-4 lg:px-20 border-b border-base-300">
+            <div class="flex-1 flex flex-col items-start">
+                <a class="text-xl font-black tracking-tighter">IssueTracker</a>
+                <span class="text-[10px] uppercase tracking-widest opacity-60 font-bold">by Ishfak Mahbub Samin</span>
             </div>
-            <div class="flex-none gap-2">
-                <div class="join">
-                    <input id="search-input" class="input input-bordered join-item input-sm md:input-md w-32 md:w-auto" placeholder="Search issues..."/>
-                    <button id="search-btn" class="btn join-item btn-sm md:btn-md btn-primary">Search</button>
+            <div class="flex-none gap-3">
+                <label class="swap swap-rotate btn btn-ghost btn-circle btn-sm">
+                    <input type="checkbox" id="theme-toggle" />
+                    <i class="fa-solid fa-sun swap-on text-warning"></i>
+                    <i class="fa-solid fa-moon swap-off text-info"></i>
+                </label>
+                <div class="join hidden md:flex">
+                    <input id="search-input" class="input input-bordered join-item input-sm" placeholder="Search issues..."/>
+                    <button id="search-btn" class="btn join-item btn-sm btn-primary">Search</button>
                 </div>
-                <button onclick="logout()" class="btn btn-ghost btn-sm">Logout</button>
+                <button onclick="logout()" class="btn btn-ghost btn-sm text-error">Logout</button>
             </div>
         </div>
 
         <main class="container mx-auto p-4 lg:p-10">
-            <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <div class="tabs tabs-boxed bg-white border">
+            <div class="mb-8">
+                <h1 id="view-title" class="text-4xl font-extrabold mb-4">All Issues</h1>
+                
+                <div class="flex flex-col md:flex-row justify-between items-center p-6 bg-base-100 rounded-2xl border border-base-300 shadow-sm gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-primary/10 p-3 rounded-lg">
+                            <i class="fa-solid fa-list-check text-primary text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-3xl font-black leading-none" id="dynamic-count">50</p>
+                            <p class="text-xs opacity-50 font-bold uppercase tracking-tighter mt-1">Total Result Found</p>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-6">
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-green-500 pulse-green"></span>
+                            <span class="text-xs font-bold opacity-70">OPEN</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-purple-500 pulse-purple"></span>
+                            <span class="text-xs font-bold opacity-70">CLOSED</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
+                <div class="tabs tabs-boxed bg-base-100 border border-base-300 p-1">
                     <a onclick="filterIssues('all')" id="tab-all" class="tab tab-active">All</a> 
                     <a onclick="filterIssues('open')" id="tab-open" class="tab">Open</a> 
                     <a onclick="filterIssues('closed')" id="tab-closed" class="tab">Closed</a>
                 </div>
-                <div class="flex items-center gap-4 text-sm font-medium">
-                    <span class="text-green-600"><i class="fa-regular fa-circle-dot mr-1"></i> <span id="open-count">0</span> Open</span>
-                    <span class="text-purple-600"><i class="fa-solid fa-check mr-1"></i> <span id="closed-count">0</span> Closed</span>
+                
+                <div class="flex items-center gap-6 text-sm">
+                    <div class="flex items-center gap-2 text-green-500 font-black">
+                        <i class="fa-regular fa-circle-dot"></i>
+                        <span id="open-count">0</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-purple-500 font-black">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span id="closed-count">0</span>
+                    </div>
                 </div>
             </div>
 
-            <div id="loader" class="flex justify-center my-20">
-                <span class="loading loading-spinner loading-lg text-primary"></span>
+            <div id="loader" class="flex flex-col items-center justify-center my-20 hidden">
+                <span class="loading loading-bars loading-lg text-primary"></span>
+                <p class="mt-4 text-xs font-bold opacity-40 uppercase">Fetching latest data...</p>
             </div>
 
             <div id="issues-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -69,13 +117,12 @@
         </main>
     </div>
 
-    <dialog id="issue_modal" class="modal">
-        <div class="modal-box w-11/12 max-w-2xl">
+    <dialog id="issue_modal" class="modal modal-bottom sm:modal-middle">
+        <div class="modal-box bg-base-100 border border-base-300 max-w-2xl">
             <form method="dialog">
                 <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
             </form>
-            <div id="modal-content">
-                </div>
+            <div id="modal-content"></div>
         </div>
     </dialog>
 

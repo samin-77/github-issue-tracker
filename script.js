@@ -3,90 +3,90 @@ const mainPage = document.getElementById('main-page');
 const loginForm = document.getElementById('login-form');
 const issuesContainer = document.getElementById('issues-container');
 const loader = document.getElementById('loader');
+const dynamicCount = document.getElementById('dynamic-count');
+const viewTitle = document.getElementById('view-title');
+const themeToggle = document.getElementById('theme-toggle');
 
-let allIssues = [];
+let allIssuesData = [];
 
-// --- Authentication ---
-loginForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const user = document.getElementById('username').value;
-    const pass = document.getElementById('password').value;
+// --- Dark Mode Persistence ---
+const currentTheme = localStorage.getItem('theme') || 'light';
+document.documentElement.setAttribute('data-theme', currentTheme);
+themeToggle.checked = currentTheme === 'dark';
 
-    if (user === 'admin' && pass === 'admin123') {
-        localStorage.setItem('loggedIn', 'true');
-        checkAuth();
-    } else {
-        alert("Invalid credentials! Use admin / admin123");
-    }
+themeToggle.addEventListener('change', (e) => {
+    const theme = e.target.checked ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
 });
 
-function checkAuth() {
-    if (localStorage.getItem('loggedIn') === 'true') {
+// --- Auth Handling ---
+loginForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (document.getElementById('username').value === 'admin' && 
+        document.getElementById('password').value === 'admin123') {
+        localStorage.setItem('user_auth', 'active');
+        initDashboard();
+    } else { alert("Invalid login. Hint: admin / admin123"); }
+});
+
+function initDashboard() {
+    if (localStorage.getItem('user_auth') === 'active') {
         loginPage.classList.add('hidden');
         mainPage.classList.remove('hidden');
-        loadIssues();
+        loadAllIssues();
     }
 }
 
 function logout() {
-    localStorage.removeItem('loggedIn');
+    localStorage.removeItem('user_auth');
     location.reload();
 }
 
-// --- Data Fetching ---
-async function loadIssues() {
-    showLoader(true);
+// --- Fetching ---
+async function loadAllIssues() {
+    setLoading(true);
     try {
         const res = await fetch('https://phi-lab-server.vercel.app/api/v1/lab/issues');
-        if (!res.ok) throw new Error("Network response was not ok");
+        const data = await res.json();
+        // Normalize for API structure
+        allIssuesData = Array.isArray(data) ? data : (data.data || []);
         
-        const rawData = await res.json();
-        console.log("API Raw Data:", rawData); // Debugging: Check console to see structure
-
-        // Normalize data: Some APIs wrap arrays in a "data" property
-        allIssues = Array.isArray(rawData) ? rawData : (rawData.data || []);
-        
-        updateCounts(allIssues);
-        displayIssues(allIssues);
+        updateGlobalStats();
+        filterIssues('all'); // Set default view
     } catch (err) {
-        console.error("Failed to fetch issues:", err);
-        issuesContainer.innerHTML = `<p class="col-span-full text-center text-red-500">Error loading data. Please try again later.</p>`;
+        issuesContainer.innerHTML = `<div class="col-span-full alert alert-error">Failed to load data from server.</div>`;
     } finally {
-        showLoader(false);
+        setLoading(false);
     }
 }
 
-// --- UI Functions ---
-function displayIssues(issues) {
+// --- UI Logic ---
+function displayCards(issues) {
     issuesContainer.innerHTML = '';
-    
-    if (!issues || issues.length === 0) {
-        issuesContainer.innerHTML = '<p class="col-span-full text-center py-10 text-gray-400">No issues found.</p>';
-        return;
-    }
+    dynamicCount.innerText = issues.length; // Dynamic update for selected tab
 
     issues.forEach(issue => {
-        // Ensure status exists before calling toLowerCase
         const status = (issue.status || 'open').toLowerCase();
-        const borderColor = status === 'closed' ? 'border-purple-500' : 'border-green-500';
+        const borderClass = status === 'closed' ? 'border-purple-500' : 'border-green-500';
         
         const card = document.createElement('div');
-        card.className = `card bg-white shadow-sm border border-gray-200 border-t-4 ${borderColor} hover:shadow-md transition-shadow cursor-pointer`;
+        card.className = `card bg-base-100 shadow-sm border border-base-300 border-t-4 ${borderClass} hover:shadow-xl transition-all duration-300 cursor-pointer group`;
         card.innerHTML = `
-            <div class="card-body p-5" onclick="showDetails('${issue.id || issue._id}')">
-                <h2 class="card-title text-sm font-bold line-clamp-1">${issue.title || 'No Title'}</h2>
-                <p class="text-xs text-gray-500 line-clamp-2 mb-4">${issue.description || 'No description provided.'}</p>
+            <div class="card-body p-6" onclick="openIssueDetail('${issue.id}')">
+                <div class="flex justify-between items-start">
+                    <h2 class="card-title text-sm font-extrabold group-hover:text-primary transition-colors">${issue.title}</h2>
+                </div>
+                <p class="text-[11px] opacity-60 line-clamp-2 my-3">${issue.description}</p>
                 
                 <div class="flex flex-wrap gap-2 mb-4">
-                    <div class="badge badge-ghost text-[10px] p-2">${issue.category || 'General'}</div>
-                    <div class="badge badge-outline text-[10px] p-2">${issue.label || 'Issue'}</div>
+                    <span class="badge badge-xs badge-ghost py-2">${issue.category}</span>
+                    <span class="badge badge-xs badge-outline py-2 opacity-50">${issue.label}</span>
                 </div>
 
-                <div class="border-t pt-3 mt-auto">
-                    <div class="flex justify-between items-center text-[10px] text-gray-400">
-                        <span class="font-medium text-gray-600"><i class="fa-regular fa-user mr-1"></i>${issue.author || 'Anonymous'}</span>
-                        <span>${issue.createdAt ? new Date(issue.createdAt).toLocaleDateString() : 'Recent'}</span>
-                    </div>
+                <div class="border-t border-base-200 pt-3 mt-auto flex justify-between items-center text-[10px] font-bold opacity-50 uppercase tracking-tighter">
+                    <span><i class="fa-solid fa-user-ninja mr-1"></i>${issue.author}</span>
+                    <span>${new Date(issue.createdAt).toLocaleDateString()}</span>
                 </div>
             </div>
         `;
@@ -94,75 +94,71 @@ function displayIssues(issues) {
     });
 }
 
-// --- Filtering & Search ---
-function filterIssues(status) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('tab-active'));
-    document.getElementById(`tab-${status}`).classList.add('tab-active');
+function filterIssues(type) {
+    // UI Tab Update
+    document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('tab-active'));
+    document.getElementById(`tab-${type}`).classList.add('tab-active');
 
-    if (status === 'all') {
-        displayIssues(allIssues);
+    // Title Update
+    viewTitle.innerText = type === 'all' ? 'All Issues' : `${type.charAt(0).toUpperCase() + type.slice(1)} Issues`;
+
+    // Data Filter
+    if (type === 'all') {
+        displayCards(allIssuesData);
     } else {
-        const filtered = allIssues.filter(i => (i.status || '').toLowerCase() === status);
-        displayIssues(filtered);
+        const filtered = allIssuesData.filter(i => (i.status || '').toLowerCase() === type);
+        displayCards(filtered);
     }
 }
 
 document.getElementById('search-btn').addEventListener('click', async () => {
-    const query = document.getElementById('search-input').value;
-    if (!query) return loadIssues();
+    const q = document.getElementById('search-input').value;
+    if (!q) return loadAllIssues();
 
-    showLoader(true);
+    setLoading(true);
     try {
-        const res = await fetch(`https://phi-lab-server.vercel.app/api/v1/lab/issues/search?q=${query}`);
-        const rawData = await res.json();
-        const searchResults = Array.isArray(rawData) ? rawData : (rawData.data || []);
-        displayIssues(searchResults);
-    } catch (err) {
-        console.error("Search failed", err);
-    } finally {
-        showLoader(false);
-    }
+        const res = await fetch(`https://phi-lab-server.vercel.app/api/v1/lab/issues/search?q=${q}`);
+        const data = await res.json();
+        const results = Array.isArray(data) ? data : (data.data || []);
+        displayCards(results);
+        viewTitle.innerText = `Search Results: ${q}`;
+    } catch (err) { console.error(err); } 
+    finally { setLoading(false); }
 });
 
-// --- Modal Logic ---
-async function showDetails(id) {
-    try {
-        const res = await fetch(`https://phi-lab-server.vercel.app/api/v1/lab/issue/${id}`);
-        const rawData = await res.json();
-        const issue = rawData.data || rawData; // Handle potential wrapping
+async function openIssueDetail(id) {
+    const res = await fetch(`https://phi-lab-server.vercel.app/api/v1/lab/issue/${id}`);
+    const resData = await res.json();
+    const issue = resData.data || resData;
+
+    const modalBody = document.getElementById('modal-content');
+    modalBody.innerHTML = `
+        <div class="badge badge-primary badge-sm mb-2">${issue.category}</div>
+        <h3 class="font-black text-2xl mb-4 leading-tight">${issue.title}</h3>
+        <div class="flex items-center gap-3 mb-6 p-3 bg-base-200 rounded-lg">
+            <span class="badge ${issue.status === 'open' ? 'badge-success' : 'badge-secondary'} font-bold">${issue.status}</span>
+            <span class="text-xs opacity-50 font-bold">#${issue.id} • Opened by ${issue.author}</span>
+        </div>
+        <p class="text-sm opacity-80 leading-relaxed mb-8 border-l-4 border-base-300 pl-4 italic">${issue.description}</p>
         
-        const content = document.getElementById('modal-content');
-        content.innerHTML = `
-            <h3 class="font-bold text-xl mb-2">${issue.title || 'Untitled'}</h3>
-            <div class="flex gap-2 mb-4">
-                <span class="badge ${(issue.status || '').toLowerCase() === 'open' ? 'badge-success' : 'badge-secondary'}">${issue.status || 'Open'}</span>
-                <span class="text-gray-400 text-sm">#${issue.id || 'N/A'} opened by ${issue.author || 'Unknown'}</span>
-            </div>
-            <hr class="my-4"/>
-            <p class="text-gray-700 leading-relaxed mb-6">${issue.description || 'No description available.'}</p>
-            <div class="grid grid-cols-2 gap-4 text-sm bg-slate-50 p-4 rounded-lg">
-                <div><span class="font-bold">Priority:</span> ${issue.priority || 'Normal'}</div>
-                <div><span class="font-bold">Category:</span> ${issue.category || 'Uncategorized'}</div>
-                <div><span class="font-bold">Label:</span> ${issue.label || 'None'}</div>
-                <div><span class="font-bold">Created:</span> ${issue.createdAt ? new Date(issue.createdAt).toLocaleString() : 'N/A'}</div>
-            </div>
-        `;
-        document.getElementById('issue_modal').showModal();
-    } catch (err) {
-        alert("Could not load issue details.");
-    }
+        <div class="grid grid-cols-2 gap-4 text-[10px] font-bold uppercase opacity-60">
+            <div class="p-3 bg-base-200 rounded-lg"><p>Priority</p><p class="text-base text-base-content">${issue.priority}</p></div>
+            <div class="p-3 bg-base-200 rounded-lg"><p>Labels</p><p class="text-base text-base-content">${issue.label}</p></div>
+        </div>
+    `;
+    document.getElementById('issue_modal').showModal();
 }
 
-function showLoader(isLoading) {
-    loader.classList.toggle('hidden', !isLoading);
-    issuesContainer.classList.toggle('hidden', isLoading);
+function setLoading(state) {
+    loader.classList.toggle('hidden', !state);
+    issuesContainer.classList.toggle('hidden', state);
 }
 
-function updateCounts(issues) {
-    const open = issues.filter(i => (i.status || '').toLowerCase() === 'open').length;
-    const closed = issues.filter(i => (i.status || '').toLowerCase() === 'closed').length;
-    document.getElementById('open-count').innerText = open;
-    document.getElementById('closed-count').innerText = closed;
+function updateGlobalStats() {
+    const o = allIssuesData.filter(i => (i.status || '').toLowerCase() === 'open').length;
+    const c = allIssuesData.filter(i => (i.status || '').toLowerCase() === 'closed').length;
+    document.getElementById('open-count').innerText = o;
+    document.getElementById('closed-count').innerText = c;
 }
 
-checkAuth();
+initDashboard();
