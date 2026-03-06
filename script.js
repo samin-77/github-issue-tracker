@@ -214,59 +214,5 @@ function updateGlobalStats() {
     document.getElementById('open-count').innerText = o;
     document.getElementById('closed-count').innerText = c;
 }
-function displayCards(issues) {
-    issuesContainer.innerHTML = '';
-    dynamicCount.innerText = issues.length;
-    dynamicText.innerText = issues.length === 1 ? 'Issue' : 'Issues';
-
-    issues.forEach(rawIssue => {
-        const issue = normalizeIssue(rawIssue);
-        const isClosed = issue.status === 'closed';
-        
-        // Dynamic Classes
-        const borderClass = isClosed ? 'border-purple-500' : 'border-green-500';
-        const pulseClass = isClosed ? 'pulse-purple' : 'pulse-green';
-        
-        let priorityColor = 'text-yellow-500';
-        if(issue.priority === 'high') priorityColor = 'text-red-500';
-        if(issue.priority === 'low') priorityColor = 'text-emerald-500';
-        
-        const card = document.createElement('div');
-        card.className = `card-github bg-white border border-base-300 border-t-4 ${borderClass} shadow-sm cursor-pointer flex flex-col`;
-        
-        card.innerHTML = `
-            <div class="status-pulse ${pulseClass}"></div>
-            
-            <div class="p-8 flex flex-col h-full" onclick="openIssueDetail('${issue.id}')">
-                <div class="flex justify-between items-start mb-4">
-                    <span class="text-[10px] font-black uppercase opacity-40 tracking-widest ml-4">${issue.category}</span>
-                    <span class="text-[10px] font-black uppercase ${priorityColor}">
-                        <i class="fa-solid fa-bolt mr-1"></i>${issue.priority}
-                    </span>
-                </div>
-
-                <h2 class="text-base font-black leading-tight mb-3 line-clamp-2">${issue.title}</h2>
-                <p class="text-[11px] text-gray-500 font-medium line-clamp-3 mb-6 flex-grow">${issue.description}</p>
-                
-                <div class="flex gap-2 mb-2">
-                    <span class="px-3 py-1 bg-primary/5 text-primary border border-primary/20 text-[10px] font-black rounded-lg uppercase">${issue.label}</span>
-                </div>
-
-                <div class="dashed-line"></div>
-
-                <div class="flex items-center justify-between mt-auto">
-                    <div class="flex items-center gap-2">
-                        <div class="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-[10px] font-black text-white">
-                            ${issue.author.charAt(0).toUpperCase()}
-                        </div>
-                        <span class="text-[11px] font-black opacity-80 uppercase tracking-tighter">${issue.author}</span>
-                    </div>
-                    <span class="text-[10px] font-bold opacity-30 italic">${new Date(issue.createdAt).toLocaleDateString()}</span>
-                </div>
-            </div>
-        `;
-        issuesContainer.appendChild(card);
-    });
-}
 
 initDashboard();
