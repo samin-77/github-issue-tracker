@@ -4,15 +4,16 @@ const loginForm = document.getElementById('login-form');
 const issuesContainer = document.getElementById('issues-container');
 const loader = document.getElementById('loader');
 const dynamicCount = document.getElementById('dynamic-count');
+const dynamicText = document.getElementById('dynamic-text');
 const viewTitle = document.getElementById('view-title');
 const themeToggle = document.getElementById('theme-toggle');
 
 let allIssuesData = [];
 
-// --- Dark Mode Persistence ---
-const currentTheme = localStorage.getItem('theme') || 'light';
-document.documentElement.setAttribute('data-theme', currentTheme);
-themeToggle.checked = currentTheme === 'dark';
+// --- Theme Logic ---
+const savedTheme = localStorage.getItem('theme') || 'light';
+document.documentElement.setAttribute('data-theme', savedTheme);
+themeToggle.checked = savedTheme === 'dark';
 
 themeToggle.addEventListener('change', (e) => {
     const theme = e.target.checked ? 'dark' : 'light';
@@ -20,14 +21,14 @@ themeToggle.addEventListener('change', (e) => {
     localStorage.setItem('theme', theme);
 });
 
-// --- Auth Handling ---
+// --- Auth ---
 loginForm.addEventListener('submit', (e) => {
     e.preventDefault();
     if (document.getElementById('username').value === 'admin' && 
         document.getElementById('password').value === 'admin123') {
         localStorage.setItem('user_auth', 'active');
         initDashboard();
-    } else { alert("Invalid login. Hint: admin / admin123"); }
+    } else { alert("Login failed!"); }
 });
 
 function initDashboard() {
@@ -49,44 +50,49 @@ async function loadAllIssues() {
     try {
         const res = await fetch('https://phi-lab-server.vercel.app/api/v1/lab/issues');
         const data = await res.json();
-        // Normalize for API structure
         allIssuesData = Array.isArray(data) ? data : (data.data || []);
-        
         updateGlobalStats();
-        filterIssues('all'); // Set default view
+        filterIssues('all');
     } catch (err) {
-        issuesContainer.innerHTML = `<div class="col-span-full alert alert-error">Failed to load data from server.</div>`;
+        issuesContainer.innerHTML = `<div class="col-span-full text-center text-error font-bold">API Connection Error</div>`;
     } finally {
         setLoading(false);
     }
 }
 
-// --- UI Logic ---
+// --- Card Display (Updated to match Figma Card Style) ---
 function displayCards(issues) {
     issuesContainer.innerHTML = '';
-    dynamicCount.innerText = issues.length; // Dynamic update for selected tab
+    dynamicCount.innerText = issues.length;
+    // Grammar check for the "Issues" text
+    dynamicText.innerText = issues.length === 1 ? 'Issue' : 'Issues';
 
     issues.forEach(issue => {
         const status = (issue.status || 'open').toLowerCase();
         const borderClass = status === 'closed' ? 'border-purple-500' : 'border-green-500';
         
         const card = document.createElement('div');
-        card.className = `card bg-base-100 shadow-sm border border-base-300 border-t-4 ${borderClass} hover:shadow-xl transition-all duration-300 cursor-pointer group`;
+        card.className = `card-github bg-base-100 shadow-sm border border-base-300 border-t-4 ${borderClass} rounded-2xl overflow-hidden cursor-pointer`;
         card.innerHTML = `
-            <div class="card-body p-6" onclick="openIssueDetail('${issue.id}')">
-                <div class="flex justify-between items-start">
-                    <h2 class="card-title text-sm font-extrabold group-hover:text-primary transition-colors">${issue.title}</h2>
+            <div class="p-6 flex flex-col h-full" onclick="openIssueDetail('${issue.id}')">
+                <div class="mb-3">
+                    <h2 class="text-sm font-black leading-tight hover:text-primary line-clamp-2">${issue.title}</h2>
                 </div>
-                <p class="text-[11px] opacity-60 line-clamp-2 my-3">${issue.description}</p>
+                <p class="text-[11px] text-gray-500 font-medium line-clamp-3 mb-4 flex-grow">${issue.description}</p>
                 
-                <div class="flex flex-wrap gap-2 mb-4">
-                    <span class="badge badge-xs badge-ghost py-2">${issue.category}</span>
-                    <span class="badge badge-xs badge-outline py-2 opacity-50">${issue.label}</span>
+                <div class="flex flex-wrap gap-2 mb-5">
+                    <span class="px-2 py-1 bg-base-200 text-[10px] font-bold rounded-md border border-base-300 uppercase">${issue.category}</span>
+                    <span class="px-2 py-1 border border-primary/30 text-primary text-[10px] font-bold rounded-md uppercase">${issue.label}</span>
                 </div>
 
-                <div class="border-t border-base-200 pt-3 mt-auto flex justify-between items-center text-[10px] font-bold opacity-50 uppercase tracking-tighter">
-                    <span><i class="fa-solid fa-user-ninja mr-1"></i>${issue.author}</span>
-                    <span>${new Date(issue.createdAt).toLocaleDateString()}</span>
+                <div class="flex items-center justify-between pt-4 border-t border-dashed border-base-300 mt-auto">
+                    <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">
+                            ${issue.author.charAt(0)}
+                        </div>
+                        <span class="text-[10px] font-black opacity-70 uppercase tracking-tight">${issue.author}</span>
+                    </div>
+                    <span class="text-[9px] font-bold opacity-40 italic">${new Date(issue.createdAt).toLocaleDateString()}</span>
                 </div>
             </div>
         `;
@@ -95,14 +101,10 @@ function displayCards(issues) {
 }
 
 function filterIssues(type) {
-    // UI Tab Update
     document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('tab-active'));
     document.getElementById(`tab-${type}`).classList.add('tab-active');
-
-    // Title Update
     viewTitle.innerText = type === 'all' ? 'All Issues' : `${type.charAt(0).toUpperCase() + type.slice(1)} Issues`;
 
-    // Data Filter
     if (type === 'all') {
         displayCards(allIssuesData);
     } else {
@@ -114,16 +116,13 @@ function filterIssues(type) {
 document.getElementById('search-btn').addEventListener('click', async () => {
     const q = document.getElementById('search-input').value;
     if (!q) return loadAllIssues();
-
     setLoading(true);
     try {
         const res = await fetch(`https://phi-lab-server.vercel.app/api/v1/lab/issues/search?q=${q}`);
         const data = await res.json();
-        const results = Array.isArray(data) ? data : (data.data || []);
-        displayCards(results);
-        viewTitle.innerText = `Search Results: ${q}`;
-    } catch (err) { console.error(err); } 
-    finally { setLoading(false); }
+        displayCards(Array.isArray(data) ? data : (data.data || []));
+        viewTitle.innerText = `Search: ${q}`;
+    } catch (err) { console.error(err); } finally { setLoading(false); }
 });
 
 async function openIssueDetail(id) {
@@ -131,19 +130,29 @@ async function openIssueDetail(id) {
     const resData = await res.json();
     const issue = resData.data || resData;
 
-    const modalBody = document.getElementById('modal-content');
-    modalBody.innerHTML = `
-        <div class="badge badge-primary badge-sm mb-2">${issue.category}</div>
-        <h3 class="font-black text-2xl mb-4 leading-tight">${issue.title}</h3>
-        <div class="flex items-center gap-3 mb-6 p-3 bg-base-200 rounded-lg">
-            <span class="badge ${issue.status === 'open' ? 'badge-success' : 'badge-secondary'} font-bold">${issue.status}</span>
-            <span class="text-xs opacity-50 font-bold">#${issue.id} • Opened by ${issue.author}</span>
+    document.getElementById('modal-content').innerHTML = `
+        <div class="mb-6">
+            <span class="text-primary font-black text-xs uppercase tracking-widest">${issue.category}</span>
+            <h3 class="font-black text-3xl mt-1 leading-tight">${issue.title}</h3>
         </div>
-        <p class="text-sm opacity-80 leading-relaxed mb-8 border-l-4 border-base-300 pl-4 italic">${issue.description}</p>
-        
-        <div class="grid grid-cols-2 gap-4 text-[10px] font-bold uppercase opacity-60">
-            <div class="p-3 bg-base-200 rounded-lg"><p>Priority</p><p class="text-base text-base-content">${issue.priority}</p></div>
-            <div class="p-3 bg-base-200 rounded-lg"><p>Labels</p><p class="text-base text-base-content">${issue.label}</p></div>
+        <div class="flex items-center gap-3 mb-6 p-4 bg-base-200 rounded-2xl border border-base-300">
+            <span class="badge ${issue.status === 'open' ? 'badge-success' : 'badge-secondary'} font-bold p-3">
+                ${issue.status.toUpperCase()}
+            </span>
+            <span class="text-xs font-bold opacity-60 uppercase">Issue #${issue.id} • ${issue.author}</span>
+        </div>
+        <div class="bg-base-100 p-6 rounded-2xl border border-base-300 mb-6">
+            <p class="text-sm opacity-80 leading-relaxed">${issue.description}</p>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="p-4 bg-base-200 rounded-xl border border-base-300">
+                <p class="text-[10px] font-black opacity-40 uppercase">Priority</p>
+                <p class="text-sm font-bold text-primary">${issue.priority}</p>
+            </div>
+            <div class="p-4 bg-base-200 rounded-xl border border-base-300">
+                <p class="text-[10px] font-black opacity-40 uppercase">Label</p>
+                <p class="text-sm font-bold">${issue.label}</p>
+            </div>
         </div>
     `;
     document.getElementById('issue_modal').showModal();
