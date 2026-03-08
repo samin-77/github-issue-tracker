@@ -52,13 +52,12 @@ async function loadAllIssues() {
         if (!res.ok) throw new Error('Network response was not ok');
         
         const data = await res.json();
-        // Handle nested data structures (e.g., data.data vs just data)
         allIssuesData = Array.isArray(data) ? data : (data.data || []);
         
         updateGlobalStats();
         filterIssues('all');
     } catch (err) {
-        console.error("DEBUG INFO:", err); // Look at your F12 console for this!
+        console.error("DEBUG INFO:", err);
         issuesContainer.innerHTML = `<div class="col-span-full text-center py-20 font-black text-error">
             API ERROR: ${err.message}<br>
             <span class="text-xs opacity-50">Check browser console for details</span>
@@ -142,17 +141,13 @@ function updateGlobalStats() {
     if (document.getElementById('open-count')) document.getElementById('open-count').innerText = o;
     if (document.getElementById('closed-count')) document.getElementById('closed-count').innerText = c;
 }
-// --- Modal Logic with same safety checks as cards ---
 async function openIssueDetail(id) {
     try {
         const res = await fetch(`https://phi-lab-server.vercel.app/api/v1/lab/issue/${id}`);
         const resData = await res.json();
-        
-        // Use the same normalization to avoid 'undefined' errors
         const issue = normalizeIssue(resData.data || resData);
         const isClosed = issue.status === 'closed';
 
-        // Generate Labels for the Modal
         const modalLabelsHtml = issue.labels.map(label => {
             return `<span class="badge badge-primary font-black uppercase p-3 h-auto text-[10px]">${label}</span>`;
         }).join('');
