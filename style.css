@@ -45,3 +45,27 @@ body {
     border-radius: 2rem; 
     background-color: white;
 }
+/* Specific overrides for Dark Mode */
+[data-theme='dark'] .bg-white {
+    background-color: #1d232a !important; /* DaisyUI neutral dark */
+    color: #f8fafc !important;
+}
+
+[data-theme='dark'] .text-black {
+    color: #f8fafc !important;
+}
+
+[data-theme='dark'] body {
+    background-color: #121212;
+}
+
+[data-theme='dark'] .input-bordered {
+    border-color: #3f3f46;
+    background-color: #1d232a !important;
+    color: white !important;
+}
+
+/* Ensure card titles are visible in dark mode */
+[data-theme='dark'] .card-github h2 {
+    color: white !important;
+}
