@@ -6,35 +6,31 @@ const loader = document.getElementById('loader');
 const dynamicCount = document.getElementById('dynamic-count');
 const dynamicText = document.getElementById('dynamic-text');
 const viewTitle = document.getElementById('view-title');
-const themeToggle = document.getElementById('theme-toggle');
 
 let allIssuesData = [];
 
-// --- Data Normalization (FIX FOR ACCURATE FETCHING) ---
+// --- Safety-First Normalization ---
 function normalizeIssue(issue) {
+    // Force labels to be an array even if the API sends null/undefined/string
+    let labels = [];
+    if (Array.isArray(issue?.labels)) {
+        labels = issue.labels;
+    } else if (issue?.label) {
+        labels = [issue.label];
+    }
+
     return {
-        id: issue.id || issue._id || 'N/A',
-        title: issue.title || 'No Title Provided',
-        description: issue.description || 'No description available for this issue.',
-        status: (issue.status || 'open').toLowerCase(),
-        priority: (issue.priority || issue.priority_level || 'Medium').toLowerCase(),
-        category: issue.category || 'General',
-        label: issue.label || 'Issue',
-        author: issue.author || 'Anonymous',
-        createdAt: issue.createdAt || new Date()
+        id: String(issue?.id || issue?._id || '0000'),
+        title: issue?.title || 'Untitled Issue',
+        description: issue?.description || 'No description available.',
+        status: String(issue?.status || 'open').toLowerCase(),
+        priority: String(issue?.priority || issue?.priority_level || 'Medium').toLowerCase(),
+        category: issue?.category || 'General',
+        labels: labels,
+        author: issue?.author || 'Anonymous',
+        createdAt: issue?.createdAt || new Date()
     };
 }
-
-// --- Theme Logic ---
-const savedTheme = localStorage.getItem('theme') || 'light';
-document.documentElement.setAttribute('data-theme', savedTheme);
-themeToggle.checked = savedTheme === 'dark';
-
-themeToggle.addEventListener('change', (e) => {
-    const theme = e.target.checked ? 'dark' : 'light';
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
-});
 
 // --- Auth ---
 loginForm.addEventListener('submit', (e) => {
@@ -43,7 +39,7 @@ loginForm.addEventListener('submit', (e) => {
         document.getElementById('password').value === 'admin123') {
         localStorage.setItem('user_auth', 'active');
         initDashboard();
-    } else { alert("Login failed! Hint: admin / admin123"); }
+    } else { alert("Login failed!"); }
 });
 
 function initDashboard() {
@@ -59,91 +55,134 @@ function logout() {
     location.reload();
 }
 
-// --- Fetching ---
+// --- Fetching with detailed error logging ---
 async function loadAllIssues() {
     setLoading(true);
     try {
         const res = await fetch('https://phi-lab-server.vercel.app/api/v1/lab/issues');
+        if (!res.ok) throw new Error('Network response was not ok');
+        
         const data = await res.json();
+        // Handle nested data structures (e.g., data.data vs just data)
         allIssuesData = Array.isArray(data) ? data : (data.data || []);
+        
         updateGlobalStats();
         filterIssues('all');
     } catch (err) {
-        issuesContainer.innerHTML = `<div class="col-span-full text-center py-20 font-black text-error">API ERROR: Server Unreachable</div>`;
+        console.error("DEBUG INFO:", err); // Look at your F12 console for this!
+        issuesContainer.innerHTML = `<div class="col-span-full text-center py-20 font-black text-error">
+            API ERROR: ${err.message}<br>
+            <span class="text-xs opacity-50">Check browser console for details</span>
+        </div>`;
     } finally {
         setLoading(false);
     }
 }
 
-// --- Figma Card Logic ---
+// --- Card Rendering matching your image ---
 function displayCards(issues) {
     issuesContainer.innerHTML = '';
-    dynamicCount.innerText = issues.length;
-    dynamicText.innerText = issues.length === 1 ? 'Issue' : 'Issues';
+    const list = Array.isArray(issues) ? issues : [];
+    
+    if (dynamicCount) dynamicCount.innerText = list.length;
+    if (dynamicText) dynamicText.innerText = list.length === 1 ? 'Issue' : 'Issues';
 
-    issues.forEach(rawIssue => {
+    list.forEach(rawIssue => {
         const issue = normalizeIssue(rawIssue);
         const isClosed = issue.status === 'closed';
         const borderClass = isClosed ? 'border-purple-500' : 'border-green-500';
         
-        // Priority color mapping
-        let priorityColor = 'text-yellow-500';
-        if(issue.priority === 'high') priorityColor = 'text-red-500';
-        if(issue.priority === 'low') priorityColor = 'text-emerald-500';
-        
+        const labelsHtml = issue.labels.map(label => {
+            const l = String(label).toLowerCase();
+            let style = "bg-blue-50 text-blue-600 border-blue-100";
+            let icon = '<i class="fa-solid fa-tag mr-1"></i>';
+
+            if (l.includes('bug')) {
+                style = "bg-red-50 text-red-500 border-red-100";
+                icon = '<i class="fa-solid fa-robot mr-1"></i>';
+            } else if (l.includes('help')) {
+                style = "bg-orange-50 text-orange-500 border-orange-200";
+                icon = '<i class="fa-solid fa-life-ring mr-1"></i>';
+            }
+            return `<span class="px-2 py-0.5 ${style} border text-[10px] font-black rounded-full uppercase flex items-center">${icon}${label}</span>`;
+        }).join('');
+
         const card = document.createElement('div');
         card.className = `card-github bg-white border border-base-300 border-t-4 ${borderClass} shadow-sm cursor-pointer flex flex-col`;
         card.innerHTML = `
-            <div class="p-8 flex flex-col h-full" onclick="openIssueDetail('${issue.id}')">
+            <div class="p-6 flex flex-col h-full" onclick="openIssueDetail('${issue.id}')">
                 <div class="flex justify-between items-start mb-4">
-                    <span class="text-[10px] font-black uppercase opacity-40 tracking-widest">${issue.category}</span>
-                    <span class="text-[10px] font-black uppercase ${priorityColor}">
-                        <i class="fa-solid fa-bolt mr-1"></i>${issue.priority}
+                    <div class="w-6 h-6 rounded-full border-2 border-green-100 flex items-center justify-center">
+                        <div class="w-2 h-2 bg-green-400 rounded-full"></div>
+                    </div>
+                    <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase border bg-yellow-50 text-yellow-600 border-yellow-100">
+                        ${issue.priority}
                     </span>
                 </div>
-
-                <h2 class="text-base font-black leading-tight mb-3 line-clamp-2">${issue.title}</h2>
-                <p class="text-[11px] text-gray-500 font-medium line-clamp-3 mb-6 flex-grow">${issue.description}</p>
-                
-                <div class="flex gap-2 mb-2">
-                    <span class="px-3 py-1 bg-primary/5 text-primary border border-primary/20 text-[10px] font-black rounded-lg uppercase">${issue.label}</span>
+                <h2 class="text-base font-black leading-tight mb-2 text-black line-clamp-2">${issue.title}</h2>
+                <p class="text-[11px] text-gray-400 font-medium line-clamp-2 mb-4">${issue.description}</p>
+                <div class="flex flex-wrap gap-2 mb-6">${labelsHtml}</div>
+                <div class="mt-auto pt-4 border-t border-gray-50">
+                    <p class="text-[11px] font-bold text-gray-400">#${issue.id.slice(-4)} by ${issue.author}</p>
+                    <p class="text-[11px] font-bold text-gray-400">${new Date(issue.createdAt).toLocaleDateString()}</p>
                 </div>
-
-                <div class="dashed-line"></div>
-
-                <div class="flex items-center justify-between mt-auto">
-                    <div class="flex items-center gap-2">
-                        <div class="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-[10px] font-black text-white">
-                            ${issue.author.charAt(0).toUpperCase()}
-                        </div>
-                        <span class="text-[11px] font-black opacity-80 uppercase tracking-tighter">${issue.author}</span>
-                    </div>
-                    <span class="text-[10px] font-bold opacity-30 italic">${new Date(issue.createdAt).toLocaleDateString()}</span>
-                </div>
-            </div>
-        `;
+            </div>`;
         issuesContainer.appendChild(card);
     });
 }
 
-// --- Figma Modal Logic ---
+// (Keep your existing filterIssues, setLoading, updateGlobalStats, and openIssueDetail functions below)
+function filterIssues(type) {
+    document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('tab-active'));
+    const activeTab = document.getElementById(`tab-${type}`);
+    if (activeTab) activeTab.classList.add('tab-active');
+    
+    if (viewTitle) viewTitle.innerText = type === 'all' ? 'All Issues' : `${type.charAt(0).toUpperCase() + type.slice(1)} Issues`;
+
+    if (type === 'all') {
+        displayCards(allIssuesData);
+    } else {
+        const filtered = allIssuesData.filter(i => String(i.status || '').toLowerCase() === type);
+        displayCards(filtered);
+    }
+}
+
+function setLoading(state) {
+    if (loader) loader.classList.toggle('hidden', !state);
+    if (issuesContainer) issuesContainer.classList.toggle('hidden', state);
+}
+
+function updateGlobalStats() {
+    const o = allIssuesData.filter(i => String(i.status || '').toLowerCase() === 'open').length;
+    const c = allIssuesData.filter(i => String(i.status || '').toLowerCase() === 'closed').length;
+    if (document.getElementById('open-count')) document.getElementById('open-count').innerText = o;
+    if (document.getElementById('closed-count')) document.getElementById('closed-count').innerText = c;
+}
+// --- Modal Logic with same safety checks as cards ---
 async function openIssueDetail(id) {
     try {
         const res = await fetch(`https://phi-lab-server.vercel.app/api/v1/lab/issue/${id}`);
         const resData = await res.json();
+        
+        // Use the same normalization to avoid 'undefined' errors
         const issue = normalizeIssue(resData.data || resData);
         const isClosed = issue.status === 'closed';
+
+        // Generate Labels for the Modal
+        const modalLabelsHtml = issue.labels.map(label => {
+            return `<span class="badge badge-primary font-black uppercase p-3 h-auto text-[10px]">${label}</span>`;
+        }).join('');
 
         document.getElementById('modal-content').innerHTML = `
             <div class="flex flex-col md:flex-row min-h-[450px]">
                 <div class="flex-[1.5] p-10 bg-white">
                     <div class="mb-8">
                         <span class="text-primary font-black text-[10px] uppercase tracking-[0.3em] mb-2 block">${issue.category}</span>
-                        <h3 class="font-black text-4xl leading-tight">${issue.title}</h3>
+                        <h3 class="font-black text-4xl leading-tight text-black">${issue.title}</h3>
                     </div>
 
                     <div class="p-8 bg-gray-50 rounded-[2rem] border border-gray-100 mb-8">
-                        <p class="text-sm font-medium leading-relaxed opacity-70 italic">"${issue.description}"</p>
+                        <p class="text-sm font-medium leading-relaxed opacity-70 italic text-black">"${issue.description}"</p>
                     </div>
 
                     <div class="flex items-center gap-4">
@@ -151,23 +190,23 @@ async function openIssueDetail(id) {
                              ${issue.author.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                            <p class="text-sm font-black uppercase">${issue.author}</p>
-                            <p class="text-[10px] font-bold opacity-40 uppercase tracking-widest">Issue Reported by User</p>
+                            <p class="text-sm font-black uppercase text-black">${issue.author}</p>
+                            <p class="text-[10px] font-bold opacity-40 uppercase tracking-widest text-black">Issue Reported by User</p>
                         </div>
                     </div>
                 </div>
 
                 <div class="flex-1 p-10 bg-[#f8fafc] border-l border-base-300 space-y-6">
                     <div>
-                        <p class="text-[10px] font-black opacity-40 uppercase tracking-widest mb-3">Status</p>
+                        <p class="text-[10px] font-black opacity-40 uppercase tracking-widest mb-3 text-black">Status</p>
                         <div class="flex items-center gap-3 bg-white p-4 rounded-2xl border border-base-300">
                             <span class="w-3 h-3 rounded-full ${isClosed ? 'bg-purple-500 pulse-purple' : 'bg-green-500 pulse-green'}"></span>
-                            <span class="font-black text-sm uppercase">${issue.status}</span>
+                            <span class="font-black text-sm uppercase text-black">${issue.status}</span>
                         </div>
                     </div>
 
                     <div>
-                        <p class="text-[10px] font-black opacity-40 uppercase tracking-widest mb-3">Priority</p>
+                        <p class="text-[10px] font-black opacity-40 uppercase tracking-widest mb-3 text-black">Priority</p>
                         <div class="bg-white p-4 rounded-2xl border border-base-300">
                             <span class="font-black text-sm uppercase ${issue.priority === 'high' ? 'text-red-500' : 'text-yellow-500'}">
                                 <i class="fa-solid fa-triangle-exclamation mr-2"></i>${issue.priority}
@@ -176,43 +215,27 @@ async function openIssueDetail(id) {
                     </div>
 
                     <div>
-                        <p class="text-[10px] font-black opacity-40 uppercase tracking-widest mb-3">Category Tag</p>
-                        <span class="badge badge-primary font-black uppercase p-3">${issue.label}</span>
+                        <p class="text-[10px] font-black opacity-40 uppercase tracking-widest mb-3 text-black">Category Tags</p>
+                        <div class="flex flex-wrap gap-2">
+                            ${modalLabelsHtml || '<span class="text-[10px] opacity-30">No labels</span>'}
+                        </div>
                     </div>
 
                     <div class="pt-4 opacity-30">
-                        <p class="text-[10px] font-black uppercase">Ref ID: ${issue.id}</p>
+                        <p class="text-[10px] font-black uppercase text-black">Ref ID: ${issue.id}</p>
                     </div>
                 </div>
             </div>
         `;
-        document.getElementById('issue_modal').showModal();
-    } catch (err) { console.error(err); }
-}
-
-function filterIssues(type) {
-    document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('tab-active'));
-    document.getElementById(`tab-${type}`).classList.add('tab-active');
-    viewTitle.innerText = type === 'all' ? 'All Issues' : `${type.charAt(0).toUpperCase() + type.slice(1)} Issues`;
-
-    if (type === 'all') {
-        displayCards(allIssuesData);
-    } else {
-        const filtered = allIssuesData.filter(i => (i.status || '').toLowerCase() === type);
-        displayCards(filtered);
+        
+        // Display the modal
+        const modal = document.getElementById('issue_modal');
+        if (modal) {
+            modal.showModal();
+        }
+    } catch (err) { 
+        console.error("Modal Error:", err); 
     }
-}
-
-function setLoading(state) {
-    loader.classList.toggle('hidden', !state);
-    issuesContainer.classList.toggle('hidden', state);
-}
-
-function updateGlobalStats() {
-    const o = allIssuesData.filter(i => (i.status || '').toLowerCase() === 'open').length;
-    const c = allIssuesData.filter(i => (i.status || '').toLowerCase() === 'closed').length;
-    document.getElementById('open-count').innerText = o;
-    document.getElementById('closed-count').innerText = c;
 }
 
 initDashboard();
