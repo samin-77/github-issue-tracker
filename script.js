@@ -150,44 +150,45 @@ async function openIssueDetail(id) {
         const isClosed = issue.status === 'closed';
 
         const modalLabelsHtml = issue.labels.map(label => {
-            return `<span class="badge badge-primary font-black uppercase p-3 h-auto text-[10px]">${label}</span>`;
+            return `<span class="badge badge-primary font-black uppercase p-3 h-auto text-[10px] text-white">${label}</span>`;
         }).join('');
 
+        // Using base-100/base-200 and text-base-content for automatic dark/light switching
         document.getElementById('modal-content').innerHTML = `
-            <div class="flex flex-col md:flex-row min-h-[450px]">
-                <div class="flex-[1.5] p-10 bg-white">
+            <div class="flex flex-col md:flex-row min-h-[450px] bg-base-100">
+                <div class="flex-[1.5] p-10">
                     <div class="mb-8">
                         <span class="text-primary font-black text-[10px] uppercase tracking-[0.3em] mb-2 block">${issue.category}</span>
-                        <h3 class="font-black text-4xl leading-tight text-black">${issue.title}</h3>
+                        <h3 class="font-black text-4xl leading-tight text-base-content">${issue.title}</h3>
                     </div>
 
-                    <div class="p-8 bg-gray-50 rounded-[2rem] border border-gray-100 mb-8">
-                        <p class="text-sm font-medium leading-relaxed opacity-70 italic text-black">"${issue.description}"</p>
+                    <div class="p-8 bg-base-200 rounded-[2rem] border border-base-300 mb-8">
+                        <p class="text-sm font-medium leading-relaxed italic text-base-content opacity-90">"${issue.description}"</p>
                     </div>
 
                     <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-2xl bg-black text-white flex items-center justify-center font-black">
+                        <div class="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center font-black">
                              ${issue.author.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                            <p class="text-sm font-black uppercase text-black">${issue.author}</p>
-                            <p class="text-[10px] font-bold opacity-40 uppercase tracking-widest text-black">Issue Reported by User</p>
+                            <p class="text-sm font-black uppercase text-base-content">${issue.author}</p>
+                            <p class="text-[10px] font-bold opacity-60 uppercase tracking-widest text-base-content">Issue Reported by User</p>
                         </div>
                     </div>
                 </div>
 
-                <div class="flex-1 p-10 bg-[#f8fafc] border-l border-base-300 space-y-6">
+                <div class="flex-1 p-10 bg-base-200 border-l border-base-300 space-y-6">
                     <div>
-                        <p class="text-[10px] font-black opacity-40 uppercase tracking-widest mb-3 text-black">Status</p>
-                        <div class="flex items-center gap-3 bg-white p-4 rounded-2xl border border-base-300">
+                        <p class="text-[10px] font-black opacity-60 uppercase tracking-widest mb-3 text-base-content">Status</p>
+                        <div class="flex items-center gap-3 bg-base-100 p-4 rounded-2xl border border-base-300">
                             <span class="w-3 h-3 rounded-full ${isClosed ? 'bg-purple-500 pulse-purple' : 'bg-green-500 pulse-green'}"></span>
-                            <span class="font-black text-sm uppercase text-black">${issue.status}</span>
+                            <span class="font-black text-sm uppercase text-base-content">${issue.status}</span>
                         </div>
                     </div>
 
                     <div>
-                        <p class="text-[10px] font-black opacity-40 uppercase tracking-widest mb-3 text-black">Priority</p>
-                        <div class="bg-white p-4 rounded-2xl border border-base-300">
+                        <p class="text-[10px] font-black opacity-60 uppercase tracking-widest mb-3 text-base-content">Priority</p>
+                        <div class="bg-base-100 p-4 rounded-2xl border border-base-300">
                             <span class="font-black text-sm uppercase ${issue.priority === 'high' ? 'text-red-500' : 'text-yellow-500'}">
                                 <i class="fa-solid fa-triangle-exclamation mr-2"></i>${issue.priority}
                             </span>
@@ -195,14 +196,14 @@ async function openIssueDetail(id) {
                     </div>
 
                     <div>
-                        <p class="text-[10px] font-black opacity-40 uppercase tracking-widest mb-3 text-black">Category Tags</p>
+                        <p class="text-[10px] font-black opacity-60 uppercase tracking-widest mb-3 text-base-content">Category Tags</p>
                         <div class="flex flex-wrap gap-2">
-                            ${modalLabelsHtml || '<span class="text-[10px] opacity-30">No labels</span>'}
+                            ${modalLabelsHtml || '<span class="text-[10px] opacity-30 text-base-content">No labels</span>'}
                         </div>
                     </div>
 
-                    <div class="pt-4 opacity-30">
-                        <p class="text-[10px] font-black uppercase text-black">Ref ID: ${issue.id}</p>
+                    <div class="pt-4">
+                        <p class="text-[10px] font-black uppercase text-base-content opacity-40">Ref ID: ${issue.id}</p>
                     </div>
                 </div>
             </div>
@@ -215,7 +216,6 @@ async function openIssueDetail(id) {
         console.error("Modal Error:", err); 
     }
 }
-
 const searchInput = document.getElementById('search-input');
 const searchBtn = document.getElementById('search-btn');
 
