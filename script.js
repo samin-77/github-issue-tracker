@@ -6,19 +6,14 @@ const loader = document.getElementById('loader');
 const dynamicCount = document.getElementById('dynamic-count');
 const dynamicText = document.getElementById('dynamic-text');
 const viewTitle = document.getElementById('view-title');
-
 let allIssuesData = [];
-
-// --- Safety-First Normalization ---
 function normalizeIssue(issue) {
-    // Force labels to be an array even if the API sends null/undefined/string
     let labels = [];
     if (Array.isArray(issue?.labels)) {
         labels = issue.labels;
     } else if (issue?.label) {
         labels = [issue.label];
     }
-
     return {
         id: String(issue?.id || issue?._id || '0000'),
         title: issue?.title || 'Untitled Issue',
@@ -31,8 +26,6 @@ function normalizeIssue(issue) {
         createdAt: issue?.createdAt || new Date()
     };
 }
-
-// --- Auth ---
 loginForm.addEventListener('submit', (e) => {
     e.preventDefault();
     if (document.getElementById('username').value === 'admin' && 
@@ -41,7 +34,6 @@ loginForm.addEventListener('submit', (e) => {
         initDashboard();
     } else { alert("Login failed!"); }
 });
-
 function initDashboard() {
     if (localStorage.getItem('user_auth') === 'active') {
         loginPage.classList.add('hidden');
@@ -49,13 +41,10 @@ function initDashboard() {
         loadAllIssues();
     }
 }
-
 function logout() {
     localStorage.removeItem('user_auth');
     location.reload();
 }
-
-// --- Fetching with detailed error logging ---
 async function loadAllIssues() {
     setLoading(true);
     try {
@@ -78,12 +67,9 @@ async function loadAllIssues() {
         setLoading(false);
     }
 }
-
-// --- Card Rendering matching your image ---
 function displayCards(issues) {
     issuesContainer.innerHTML = '';
     const list = Array.isArray(issues) ? issues : [];
-    
     if (dynamicCount) dynamicCount.innerText = list.length;
     if (dynamicText) dynamicText.innerText = list.length === 1 ? 'Issue' : 'Issues';
 
@@ -130,8 +116,6 @@ function displayCards(issues) {
         issuesContainer.appendChild(card);
     });
 }
-
-// (Keep your existing filterIssues, setLoading, updateGlobalStats, and openIssueDetail functions below)
 function filterIssues(type) {
     document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('tab-active'));
     const activeTab = document.getElementById(`tab-${type}`);
@@ -227,8 +211,6 @@ async function openIssueDetail(id) {
                 </div>
             </div>
         `;
-        
-        // Display the modal
         const modal = document.getElementById('issue_modal');
         if (modal) {
             modal.showModal();
@@ -237,5 +219,4 @@ async function openIssueDetail(id) {
         console.error("Modal Error:", err); 
     }
 }
-
 initDashboard();
