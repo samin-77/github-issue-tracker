@@ -131,7 +131,6 @@ function filterIssues(type) {
 }
 
 
-
 function setLoading(state) {
     if (loader) loader.classList.toggle('hidden', !state);
     if (issuesContainer) issuesContainer.classList.toggle('hidden', state);
@@ -216,7 +215,7 @@ async function openIssueDetail(id) {
         console.error("Modal Error:", err); 
     }
 }
-// --- SEARCH LOGIC ---
+
 const searchInput = document.getElementById('search-input');
 const searchBtn = document.getElementById('search-btn');
 
@@ -224,34 +223,25 @@ function performSearch() {
     const query = searchInput.value.toLowerCase().trim();
     
     if (query === "") {
-        displayCards(allIssuesData); // Show all if search is empty
+        displayCards(allIssuesData); 
         return;
     }
 
-    // Filter issues where the title contains the search query
     const filteredResults = allIssuesData.filter(issue => {
         const title = (issue.title || "").toLowerCase();
         return title.includes(query);
     });
-
-    // Update the UI
     viewTitle.innerText = `Search: "${query}"`;
     displayCards(filteredResults);
 }
-
-// Event Listeners for Search
 searchBtn.addEventListener('click', performSearch);
 searchInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') performSearch();
 });
 
-
-// --- DARK MODE LOGIC ---
 const themeToggle = document.getElementById('theme-toggle');
 const themeIcon = document.getElementById('theme-icon');
 const htmlElement = document.documentElement;
-
-// Initialize theme from local storage
 const savedTheme = localStorage.getItem('theme') || 'light';
 applyTheme(savedTheme);
 
